@@ -1,0 +1,156 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Echo - History Clipboard"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Echo History Clipboard"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Echo"
+    },
+    {
+      "name": "tab_clipboard",
+      "value": "Clipboard"
+    },
+    {
+      "name": "tab_categories",
+      "value": "Categories"
+    },
+    {
+      "name": "tab_settings",
+      "value": "Settings"
+    },
+    {
+      "name": "search_hint",
+      "value": "Search clipboard..."
+    },
+    {
+      "name": "filter_all",
+      "value": "All"
+    },
+    {
+      "name": "empty_clips",
+      "value": "No clipboard history yet"
+    },
+    {
+      "name": "empty_clips_hint",
+      "value": "Copy some text or images to get started"
+    },
+    {
+      "name": "empty_search",
+      "value": "Nothing found"
+    },
+    {
+      "name": "category_title",
+      "value": "Categories"
+    },
+    {
+      "name": "add_category",
+      "value": "New Category"
+    },
+    {
+      "name": "add_category_hint",
+      "value": "Category name"
+    },
+    {
+      "name": "edit_category_hint",
+      "value": "New name"
+    },
+    {
+      "name": "delete_category_title",
+      "value": "Delete category?"
+    },
+    {
+      "name": "delete_category_msg",
+      "value": "Clips will be moved to Default"
+    },
+    {
+      "name": "move_to_category",
+      "value": "Move to..."
+    },
+    {
+      "name": "pin",
+      "value": "Pin"
+    },
+    {
+      "name": "unpin",
+      "value": "Unpin"
+    },
+    {
+      "name": "delete",
+      "value": "Delete"
+    },
+    {
+      "name": "copied",
+      "value": "Copied!"
+    },
+    {
+      "name": "settings_title",
+      "value": "Settings"
+    },
+    {
+      "name": "settings_retention",
+      "value": "Retention Period"
+    },
+    {
+      "name": "retention_0",
+      "value": "Forever"
+    },
+    {
+      "name": "retention_1",
+      "value": "1 Day"
+    },
+    {
+      "name": "retention_3",
+      "value": "3 Days"
+    },
+    {
+      "name": "retention_5",
+      "value": "5 Days"
+    },
+    {
+      "name": "retention_7",
+      "value": "7 Days"
+    },
+    {
+      "name": "settings_clear_all",
+      "value": "Clear All Clips"
+    },
+    {
+      "name": "clear_all_title",
+      "value": "Clear all clipboard history?"
+    },
+    {
+      "name": "clear_all_msg",
+      "value": "This cannot be undone"
+    },
+    {
+      "name": "confirm",
+      "value": "Confirm"
+    },
+    {
+      "name": "cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "done",
+      "value": "Done"
+    },
+    {
+      "name": "about",
+      "value": "About"
+    },
+    {
+      "name": "version",
+      "value": "Version"
+    },
+    {
+      "name": "pasteboard_permission_reason",
+      "value": "Used to read clipboard content for history recording"
+    }
+  ]
+}

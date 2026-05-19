@@ -1,0 +1,156 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Echo - 历史剪贴板"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Echo 历史剪贴板"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Echo"
+    },
+    {
+      "name": "tab_clipboard",
+      "value": "剪贴板"
+    },
+    {
+      "name": "tab_categories",
+      "value": "分类"
+    },
+    {
+      "name": "tab_settings",
+      "value": "设置"
+    },
+    {
+      "name": "search_hint",
+      "value": "搜索剪贴内容..."
+    },
+    {
+      "name": "filter_all",
+      "value": "全部"
+    },
+    {
+      "name": "empty_clips",
+      "value": "还没有剪贴记录"
+    },
+    {
+      "name": "empty_clips_hint",
+      "value": "复制一些文字或图片开始使用吧"
+    },
+    {
+      "name": "empty_search",
+      "value": "没有找到相关内容"
+    },
+    {
+      "name": "category_title",
+      "value": "分类管理"
+    },
+    {
+      "name": "add_category",
+      "value": "新建分类"
+    },
+    {
+      "name": "add_category_hint",
+      "value": "分类名称"
+    },
+    {
+      "name": "edit_category_hint",
+      "value": "新名称"
+    },
+    {
+      "name": "delete_category_title",
+      "value": "确认删除分类？"
+    },
+    {
+      "name": "delete_category_msg",
+      "value": "该分类下的内容将移至「默认」分类"
+    },
+    {
+      "name": "move_to_category",
+      "value": "移动到..."
+    },
+    {
+      "name": "pin",
+      "value": "置顶"
+    },
+    {
+      "name": "unpin",
+      "value": "取消置顶"
+    },
+    {
+      "name": "delete",
+      "value": "删除"
+    },
+    {
+      "name": "copied",
+      "value": "已复制!"
+    },
+    {
+      "name": "settings_title",
+      "value": "设置"
+    },
+    {
+      "name": "settings_retention",
+      "value": "存储时效"
+    },
+    {
+      "name": "retention_0",
+      "value": "永不"
+    },
+    {
+      "name": "retention_1",
+      "value": "1天"
+    },
+    {
+      "name": "retention_3",
+      "value": "3天"
+    },
+    {
+      "name": "retention_5",
+      "value": "5天"
+    },
+    {
+      "name": "retention_7",
+      "value": "7天"
+    },
+    {
+      "name": "settings_clear_all",
+      "value": "清空所有内容"
+    },
+    {
+      "name": "clear_all_title",
+      "value": "确认清空所有剪贴记录？"
+    },
+    {
+      "name": "clear_all_msg",
+      "value": "此操作不可撤销"
+    },
+    {
+      "name": "confirm",
+      "value": "确认"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "done",
+      "value": "完成"
+    },
+    {
+      "name": "about",
+      "value": "关于"
+    },
+    {
+      "name": "version",
+      "value": "版本"
+    },
+    {
+      "name": "pasteboard_permission_reason",
+      "value": "用于读取剪贴板内容以记录历史"
+    }
+  ]
+}

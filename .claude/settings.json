@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"d:/AAAMy_Project/DevEcoProject/\")",
+      "Read(//d/AAAMy_Project/DevEcoProject/**)"
+    ]
+  }
+}
