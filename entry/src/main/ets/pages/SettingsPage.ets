@@ -86,7 +86,7 @@ export struct SettingsPage {
               .fontSize(14)
               .fontColor('#333333')
               .layoutWeight(1)
-            Text('1.0.0')
+            Text('1.2.0')
               .fontSize(14)
               .fontColor('#999999')
           }

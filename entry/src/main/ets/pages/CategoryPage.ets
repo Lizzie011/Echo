@@ -87,7 +87,7 @@ export struct CategoryPage {
                 .padding({ left: 16, right: 12 })
                 .margin({ left: 16, right: 16, top: 4, bottom: 4 })
               }, (cat: CategoryItem): string => {
-                return cat.id.toString();
+                return cat.id.toString() + '_' + cat.name;
               })
             }
             .width('100%')

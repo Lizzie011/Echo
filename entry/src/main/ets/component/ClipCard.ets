@@ -20,14 +20,20 @@ export struct ClipCard {
           .margin({ right: 10 })
 
         Column() {
-          Text(this.clipItem.type === 'text'
-            ? this.clipItem.content.substring(0, 200)
-            : this.getImageFileName())
-            .fontSize(14)
-            .fontColor('#1A1A1A')
-            .maxLines(3)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .width('100%')
+          if (this.clipItem.type === 'image') {
+            Image(this.clipItem.content)
+              .width('100%')
+              .height(120)
+              .objectFit(ImageFit.Cover)
+              .borderRadius(8)
+          } else {
+            Text(this.clipItem.content.substring(0, 200))
+              .fontSize(14)
+              .fontColor('#1A1A1A')
+              .maxLines(3)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width('100%')
+          }
 
           Row() {
             Text(this.formatTime(this.clipItem.createdAt))

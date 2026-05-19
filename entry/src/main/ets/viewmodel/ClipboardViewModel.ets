@@ -323,7 +323,8 @@ export class ClipboardViewModel {
 
   private passFilter(c: ClipItem): boolean {
     if (this.searchKeyword.length > 0) {
-      if (c.type !== 'text' || !c.content.includes(this.searchKeyword)) {
+      // 文字搜索仅过滤 text 类型，图片始终通过
+      if (c.type === 'text' && !c.content.includes(this.searchKeyword)) {
         return false;
       }
     }
@@ -374,19 +375,47 @@ export class ClipboardViewModel {
 
   async copyToClipboard(clip: ClipItem): Promise<void> {
     if (!this.systemPasteboard) return;
-    if (clip.type !== 'text') return;
+    if (clip.type !== 'text' && clip.type !== 'image') return;
 
     this.skipNextUpdate = true;
-    this.lastContent = clip.content;  // 阻止事件和轮询两条路径的二次保存
+    this.lastContent = clip.content;
     try {
-      const pData: pasteboard.PasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, clip.content);
       const sp: pasteboard.SystemPasteboard = this.systemPasteboard;
-      await new Promise<void>((resolve: () => void, reject: (reason: Error) => void): void => {
-        sp.setData(pData, (err: Error): void => {
-          if (err) { reject(err); } else { resolve(); }
+      if (clip.type === 'image') {
+        // 检查图片文件是否存在
+        try {
+          fileIo.statSync(clip.content);
+        } catch (e) {
+          hilog.warn(0x0000, TAG, `Image file not found: ${clip.content}`);
+          throw new Error('Image file missing');
+        }
+        // 读取图片文件到 PixelMap
+        const imgFile: fileIo.File = fileIo.openSync(clip.content, 0o0);
+        const stat: fileIo.Stat = fileIo.statSync(clip.content);
+        const buf: ArrayBuffer = new ArrayBuffer(stat.size);
+        fileIo.readSync(imgFile.fd, buf);
+        fileIo.closeSync(imgFile);
+        const imgSource: image.ImageSource = image.createImageSource(buf);
+        const pixelMap: image.PixelMap = await imgSource.createPixelMap();
+        // 用 addRecord 方式构建 PasteData，兼容性更好
+        const pData: pasteboard.PasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, '');
+        const record: pasteboard.PasteDataRecord = pasteboard.createRecord(pasteboard.MIMETYPE_PIXELMAP, pixelMap);
+        pData.addRecord(record);
+        await new Promise<void>((resolve: () => void, reject: (reason: Error) => void): void => {
+          sp.setData(pData, (err: Error): void => {
+            if (err) { reject(err); } else { resolve(); }
+          });
         });
-      });
-      hilog.info(0x0000, TAG, 'Copied to clipboard successfully');
+        hilog.info(0x0000, TAG, 'Image copied to clipboard successfully');
+      } else {
+        const pData: pasteboard.PasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, clip.content);
+        await new Promise<void>((resolve: () => void, reject: (reason: Error) => void): void => {
+          sp.setData(pData, (err: Error): void => {
+            if (err) { reject(err); } else { resolve(); }
+          });
+        });
+        hilog.info(0x0000, TAG, 'Text copied to clipboard successfully');
+      }
     } catch (err) {
       this.skipNextUpdate = false;
       const e: BusinessError = err as BusinessError;
@@ -456,6 +485,13 @@ export class ClipboardViewModel {
   }
 
   async deleteClip(clipId: number): Promise<void> {
+    // 先找到被删除的条目，如果是图片则清理文件
+    for (const c of this.fullClips) {
+      if (c.id === clipId && c.type === 'image') {
+        try { fileIo.unlinkSync(c.content); } catch (e) { /* ignore */ }
+        break;
+      }
+    }
     // 1. 乐观更新 UI（即时响应）
     const newFull: ClipItem[] = [];
     for (const c of this.fullClips) {
@@ -484,6 +520,11 @@ export class ClipboardViewModel {
       for (const c of this.fullClips) {
         if (c.expiresAt === 0 || c.expiresAt > now) {
           newFull.push(c);
+        } else {
+          // 过期图片清理磁盘文件
+          if (c.type === 'image') {
+            try { fileIo.unlinkSync(c.content); } catch (e) { /* ignore */ }
+          }
         }
       }
       this.fullClips = newFull;
