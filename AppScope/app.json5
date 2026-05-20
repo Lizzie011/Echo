@@ -4,7 +4,7 @@
     "vendor": "example",
     "versionCode": 1002000,
     "versionName": "1.2.0",
-    "icon": "$media:ic_launcher",
+    "icon": "$media:app",
     "label": "$string:app_name"
   }
 }
