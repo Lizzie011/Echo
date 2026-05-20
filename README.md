@@ -1,5 +1,9 @@
 # Echo — 历史剪贴板管理 App
 
+<p align="center">
+  <img src="AppScope/resources/base/media/app.png" alt="Echo Icon" width="128" />
+</p>
+
 > HarmonyOS NEXT · ArkTS · 版本 1.2.0
 
 ## 设计初衷
