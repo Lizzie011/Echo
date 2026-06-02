@@ -28,10 +28,13 @@ export class ClipboardViewModel {
   private readonly POLL_INTERVAL_MS: number = 2500;
   private needsBaseline: boolean = true;
   private fullClips: ClipItem[] = [];
+  private searchTimer: number = -1;
+  private defaultCategoryId: number = 1;
 
   async init(context: common.UIAbilityContext): Promise<void> {
     this.context = context;
     await this.db.init(context);
+    this.defaultCategoryId = await this.db.ensureDefaultCategory();
     await this.loadRetentionSetting();
     await this.cleanExpired();
     await this.loadClips();
@@ -230,7 +233,7 @@ export class ClipboardViewModel {
     const clip: ClipItem = new ClipItem();
     clip.type = type;
     clip.content = content;
-    clip.categoryId = 1;
+    clip.categoryId = this.defaultCategoryId;
     clip.isPinned = false;
     clip.createdAt = now;
     clip.expiresAt = expiresAt;
@@ -323,9 +326,17 @@ export class ClipboardViewModel {
 
   private passFilter(c: ClipItem): boolean {
     if (this.searchKeyword.length > 0) {
-      // 文字搜索仅过滤 text 类型，图片始终通过
-      if (c.type === 'text' && !c.content.includes(this.searchKeyword)) {
-        return false;
+      if (c.type === 'text') {
+        // 大小写不敏感搜索
+        if (!c.content.toLowerCase().includes(this.searchKeyword.toLowerCase())) {
+          return false;
+        }
+      } else if (c.type === 'image') {
+        // 图片用文件名参与搜索过滤
+        const fileName: string = this.extractFileName(c.content);
+        if (!fileName.toLowerCase().includes(this.searchKeyword.toLowerCase())) {
+          return false;
+        }
       }
     }
     if (this.selectedCategoryId > 0) {
@@ -334,6 +345,14 @@ export class ClipboardViewModel {
       }
     }
     return true;
+  }
+
+  private extractFileName(filePath: string): string {
+    const lastSlash: number = filePath.lastIndexOf('/');
+    if (lastSlash >= 0 && lastSlash < filePath.length - 1) {
+      return filePath.substring(lastSlash + 1);
+    }
+    return filePath;
   }
 
   async loadRetentionSetting(): Promise<void> {
@@ -362,8 +381,15 @@ export class ClipboardViewModel {
   // ==================== 搜索 & 筛选 ====================
 
   onSearch(keyword: string): void {
-    this.searchKeyword = keyword;
-    this.applyFilters();
+    // 200ms 防抖，减少快速输入时的频繁过滤
+    if (this.searchTimer !== -1) {
+      clearTimeout(this.searchTimer);
+    }
+    this.searchTimer = setTimeout(() => {
+      this.searchKeyword = keyword;
+      this.applyFilters();
+      this.searchTimer = -1;
+    }, 200);
   }
 
   onFilterCategory(categoryId: number): void {

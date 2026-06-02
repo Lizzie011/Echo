@@ -10,6 +10,7 @@ export struct ClipCard {
   @Param clipItem: ClipItem = new ClipItem();
   @Param categoryName: string = '';
   @Param categoryColor: string = '#FF6B6B';
+  @Param isHovered: boolean = false;
   @Event onCopy?: (item: ClipItem) => void;
 
   build() {
@@ -62,11 +63,23 @@ export struct ClipCard {
       .width('100%')
       .padding(14)
     }
-    .width('100%')
     .backgroundColor(Color.White)
     .borderRadius(14)
     .border({ width: 1, color: '#F0F0F0' })
     .margin({ top: 4, bottom: 4 })
+    .shadow(this.isHovered ? {
+      radius: 8,
+      color: 'rgba(0,0,0,0.1)',
+      offsetX: 0,
+      offsetY: 2
+    } : {
+      radius: 0,
+      color: 'rgba(0,0,0,0)',
+      offsetX: 0,
+      offsetY: 0
+    })
+    .scale(this.isHovered ? { x: 1.02, y: 1.02 } : { x: 1, y: 1 })
+    .animation({ duration: 200 })
     .onClick(() => {
       if (this.onCopy) {
         this.onCopy(this.clipItem);
