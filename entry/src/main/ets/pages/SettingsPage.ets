@@ -30,11 +30,35 @@ export struct SettingsPage {
           })
 
         if (this.breakpoint === Breakpoint.SM) {
-          // 手机：单列布局（保持原样）
-          this.buildSingleColumnContent()
+          // 手机：单列布局（内联）
+          Column() {
+            this.buildRetentionCard()
+            this.buildClearRow()
+            this.buildAboutCard()
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
         } else {
-          // 平板/PC：双列布局
-          this.buildDualColumnContent()
+          // 平板/PC：双列布局（内联）
+          Row() {
+            // 左列：存储时效
+            Column() {
+              this.buildRetentionCard()
+            }
+            .layoutWeight(1)
+            .margin({ right: 8 })
+
+            // 右列：清空 + 关于
+            Column() {
+              this.buildClearRow()
+              this.buildAboutCard()
+            }
+            .layoutWeight(1)
+            .margin({ left: 8 })
+          }
+          .width('100%')
+          .padding({ left: 18, right: 18 })
+          .alignItems(VerticalAlign.Top)
         }
 
         Blank()
@@ -50,44 +74,6 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
-  }
-
-  // ---------- 手机：单列布局 ----------
-  @Builder buildSingleColumnContent() {
-    Column() {
-      // 存储时效设置
-      this.buildRetentionCard()
-
-      // 清空所有内容
-      this.buildClearRow()
-
-      // 关于
-      this.buildAboutCard()
-    }
-    .width('100%')
-  }
-
-  // ---------- 平板/PC：双列布局 ----------
-  @Builder buildDualColumnContent() {
-    Row() {
-      // 左列：存储时效
-      Column() {
-        this.buildRetentionCard()
-      }
-      .layoutWeight(1)
-      .margin({ right: 8 })
-
-      // 右列：清空 + 关于
-      Column() {
-        this.buildClearRow()
-        this.buildAboutCard()
-      }
-      .layoutWeight(1)
-      .margin({ left: 8 })
-    }
-    .width('100%')
-    .padding({ left: 18, right: 18 })
-    .alignItems(VerticalAlign.Top)
   }
 
   // ---------- 存储时效卡片 ----------

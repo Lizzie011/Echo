@@ -22,10 +22,17 @@ export struct ClipboardPage {
   @Local private showMoveDialog: boolean = false;
   @Local private copyToast: string = '';
   @Local private hoveredClipId: number = -1;
+  @Local private showPreview: boolean = false;
+  @Local private previewClip: ClipItem | null = null;
+  @Local private searchText: string = this.vm.searchKeyword;
   private toastTimer: number = -1;
+  private lastTapTime: number = 0;
+  private lastTapClipId: number = -1;
+  private tapTimer: number = -1;
 
   aboutToAppear(): void {
-    // 页面初始化由父组件完成
+    // 从 ViewModel 同步搜索状态，确保 Tab 切换后 SearchBar 显示正确
+    this.searchText = this.vm.searchKeyword;
   }
 
   aboutToDisappear(): void {
@@ -43,7 +50,11 @@ export struct ClipboardPage {
         Row() {
           SearchBar({
             placeholder: '搜索剪贴内容...',
-            onChange: (value: string) => { this.vm.onSearch(value); }
+            value: this.searchText,
+            onChange: (value: string) => {
+              this.searchText = value;
+              this.vm.onSearch(value);
+            }
           })
         }
         .width('100%')
@@ -57,17 +68,108 @@ export struct ClipboardPage {
         // 分类筛选横滑标签
         this.buildCategoryFilter()
 
-        // 内容区域
+        // 内容区域（内联布局，确保 @Trace 数据变化时 UI 正确刷新）
         if (this.vm.clips.length === 0) {
           this.buildEmptyState()
-        } else {
-          if (this.breakpoint === Breakpoint.SM) {
-            // 手机：单列列表
-            this.buildSingleColumnList()
-          } else {
-            // 平板/PC：多列网格
-            this.buildClipGrid()
+        } else if (this.breakpoint === Breakpoint.SM) {
+          // 手机：单列列表
+          Scroll() {
+            Column() {
+              ForEach(this.vm.clips, (clip: ClipItem) => {
+                ClipCard({
+                  clipItem: clip,
+                  categoryName: this.getCategoryName(clip.categoryId),
+                  categoryColor: this.getCategoryColor(clip.categoryId)
+                })
+                .onClick(() => { this.handleCopy(clip); })
+                .gesture(
+                  LongPressGesture()
+                    .onAction(() => {
+                      this.selectedClip = clip;
+                      this.showActionSheet = true;
+                    })
+                )
+              }, (clip: ClipItem): string => {
+                return clip.id.toString();
+              })
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14 })
           }
+          .scrollable(ScrollDirection.Vertical)
+          .scrollBar(BarState.Off)
+          .layoutWeight(1)
+        } else {
+          // 平板/PC：多列网格（Flex wrap 自动换行，单层 ForEach）
+          // LG(PC)：右键菜单 + 右侧预览面板；MD(平板)：长按菜单
+          Row() {
+            Scroll() {
+              Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+                ForEach(this.vm.clips, (clip: ClipItem) => {
+                  Column() {
+                    ClipCard({
+                      clipItem: clip,
+                      categoryName: this.getCategoryName(clip.categoryId),
+                      categoryColor: this.getCategoryColor(clip.categoryId),
+                      isHovered: this.hoveredClipId === clip.id,
+                      wideLayout: true
+                    })
+                    .bindContextMenu(this.buildClipContextMenu(clip),
+                      this.breakpoint === Breakpoint.LG ? ResponseType.RightClick : ResponseType.LongPress)
+                    .onHover((isHover: boolean) => {
+                      if (isHover) {
+                        this.hoveredClipId = clip.id;
+                      } else if (this.hoveredClipId === clip.id) {
+                        this.hoveredClipId = -1;
+                      }
+                    })
+                  }
+                  .width(this.getCardWidth())
+                  .padding({ left: 3, right: 3 })
+                  .onClick(() => {
+                    if (this.breakpoint === Breakpoint.LG) {
+                      const now: number = Date.now();
+                      if (now - this.lastTapTime < 280 && this.lastTapClipId === clip.id) {
+                        if (this.tapTimer !== -1) {
+                          clearTimeout(this.tapTimer);
+                          this.tapTimer = -1;
+                        }
+                        this.handlePreview(clip);
+                        this.lastTapTime = 0;
+                        return;
+                      }
+                      this.lastTapTime = now;
+                      this.lastTapClipId = clip.id;
+                      if (this.tapTimer !== -1) {
+                        clearTimeout(this.tapTimer);
+                      }
+                      this.tapTimer = setTimeout(() => {
+                        this.handleCopy(clip);
+                        this.tapTimer = -1;
+                      }, 280);
+                    } else {
+                      this.handleCopy(clip);
+                    }
+                  })
+                }, (clip: ClipItem): string => {
+                  return clip.id.toString();
+                })
+              }
+              .width('100%')
+              .padding({ left: 11, right: 11 })
+            }
+            .scrollable(ScrollDirection.Vertical)
+            .scrollBar(BarState.Off)
+            .layoutWeight(1)
+
+            // LG 专属：右侧预览面板
+            if (this.breakpoint === Breakpoint.LG && this.showPreview && this.previewClip) {
+              Divider().vertical(true).height('100%').width(1).color('#F0F0F0')
+              this.buildPreviewPanel()
+            }
+          }
+          .width('100%')
+          .layoutWeight(1)
         }
       }
       .width('100%')
@@ -106,8 +208,13 @@ export struct ClipboardPage {
   // ---------- 键盘快捷键处理 ----------
   private handleKeyEvent(event: KeyEvent): boolean {
     const key: string = event.keyText;
-    // Escape → 关闭弹窗/面板
+    // Escape → 关闭弹窗/面板/预览
     if (key === 'Escape') {
+      if (this.showPreview) {
+        this.showPreview = false;
+        this.previewClip = null;
+        return true;
+      }
       if (this.showActionSheet) {
         this.showActionSheet = false;
         return true;
@@ -180,83 +287,6 @@ export struct ClipboardPage {
     .alignItems(HorizontalAlign.Center)
   }
 
-  // ---------- 手机端：单列列表 ----------
-  @Builder buildSingleColumnList() {
-    Scroll() {
-      Column() {
-        ForEach(this.vm.clips, (clip: ClipItem) => {
-          ClipCard({
-            clipItem: clip,
-            categoryName: this.getCategoryName(clip.categoryId),
-            categoryColor: this.getCategoryColor(clip.categoryId),
-            onCopy: (item: ClipItem): void => { this.handleCopy(item); }
-          })
-          .gesture(
-            LongPressGesture()
-              .onAction(() => {
-                this.selectedClip = clip;
-                this.showActionSheet = true;
-              })
-          )
-        }, (clip: ClipItem): string => {
-          return clip.id.toString();
-        })
-      }
-      .width('100%')
-      .padding({ left: 14, right: 14 })
-    }
-    .scrollable(ScrollDirection.Vertical)
-    .scrollBar(BarState.Off)
-    .layoutWeight(1)
-  }
-
-  // ---------- 平板/PC：多列网格 ----------
-  @Builder buildClipGrid() {
-    Scroll() {
-      Row() {
-        ForEach(this.distributeToColumns(),
-          (column: ClipItem[], colIndex: number) => {
-            Column() {
-              ForEach(column, (clip: ClipItem) => {
-                ClipCard({
-                  clipItem: clip,
-                  categoryName: this.getCategoryName(clip.categoryId),
-                  categoryColor: this.getCategoryColor(clip.categoryId),
-                  isHovered: this.hoveredClipId === clip.id,
-                  onCopy: (item: ClipItem): void => { this.handleCopy(item); }
-                })
-                .bindContextMenu(this.buildClipContextMenu(clip), ResponseType.LongPress)
-                .onHover((isHover: boolean) => {
-                  if (isHover) {
-                    this.hoveredClipId = clip.id;
-                  } else if (this.hoveredClipId === clip.id) {
-                    this.hoveredClipId = -1;
-                  }
-                })
-              }, (clip: ClipItem): string => {
-                return clip.id.toString();
-              })
-            }
-            .layoutWeight(1)
-            .margin({
-              left: colIndex === 0 ? 0 : 4,
-              right: 4
-            })
-          },
-          (column: ClipItem[], index: number): string => {
-            return 'col_' + index + '_' + column.length;
-          }
-        )
-      }
-      .width('100%')
-      .padding({ left: 14, right: 14 })
-      .alignItems(VerticalAlign.Top)
-    }
-    .scrollable(ScrollDirection.Vertical)
-    .scrollBar(BarState.Off)
-    .layoutWeight(1)
-  }
-
   // ---------- 右键/长按上下文菜单（平板/PC） ----------
   @Builder buildClipContextMenu(clip: ClipItem) {
     Menu() {
@@ -280,17 +310,175 @@ export struct ClipboardPage {
     }
   }
 
-  // ---------- 轮询法将 clips 分配到 N 列 ----------
-  private distributeToColumns(): ClipItem[][] {
-    const count: number = calcGridColumns(this.breakpoint);
-    const columns: ClipItem[][] = [];
-    for (let i: number = 0; i < count; i++) {
-      columns.push([]);
+  // ---------- LG 预览面板（PC 双击卡片） ----------
+  @Builder buildPreviewPanel() {
+    Column() {
+      // 标题栏
+      Row() {
+        Text(this.previewClip!.type === 'image' ? '🖼 图片预览' : '📝 内容预览')
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1A1A1A')
+          .layoutWeight(1)
+        Text('✕')
+          .fontSize(16)
+          .fontColor('#999999')
+          .padding(4)
+          .onClick(() => {
+            this.showPreview = false;
+            this.previewClip = null;
+          })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 12, top: 16, bottom: 12 })
+
+      Divider().height(1).color('#F0F0F0').width('100%')
+
+      // 内容区
+      Scroll() {
+        Column() {
+          if (this.previewClip!.type === 'image') {
+            Image(this.previewClip!.content)
+              .width('100%')
+              .objectFit(ImageFit.Contain)
+              .borderRadius(8)
+              .margin({ bottom: 16 })
+            Text(this.getImageFileName(this.previewClip!.content))
+              .fontSize(12)
+              .fontColor('#999999')
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          } else {
+            Text(this.previewClip!.content)
+              .fontSize(14)
+              .fontColor('#333333')
+              .lineHeight(22)
+              .width('100%')
+          }
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, top: 16, bottom: 8 })
+      }
+      .scrollable(ScrollDirection.Vertical)
+      .scrollBar(BarState.Auto)
+      .layoutWeight(1)
+
+      Divider().height(1).color('#F0F0F0').width('100%')
+
+      // 元信息
+      Column() {
+        if (this.previewClip!.categoryId > 0) {
+          Row() {
+            Text('📂 分类')
+              .fontSize(12)
+              .fontColor('#999999')
+              .width(50)
+            Text(this.getCategoryName(this.previewClip!.categoryId))
+              .fontSize(12)
+              .fontColor(Color.White)
+              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+              .borderRadius(8)
+              .backgroundColor(this.getCategoryColor(this.previewClip!.categoryId))
+          }
+          .width('100%')
+          .margin({ bottom: 6 })
+        }
+        Row() {
+          Text('🕐 时间')
+            .fontSize(12)
+            .fontColor('#999999')
+            .width(50)
+          Text(this.formatTimestamp(this.previewClip!.createdAt))
+            .fontSize(12)
+            .fontColor('#666666')
+        }
+        .width('100%')
+        .margin({ bottom: 6 })
+        Row() {
+          Text('📌 状态')
+            .fontSize(12)
+            .fontColor('#999999')
+            .width(50)
+          Text(this.previewClip!.isPinned ? '已置顶' : '未置顶')
+            .fontSize(12)
+            .fontColor(this.previewClip!.isPinned ? '#FF6B6B' : '#666666')
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+
+      Divider().height(1).color('#F0F0F0').width('100%')
+
+      // 操作按钮
+      Row() {
+        Button() {
+          Text('复制')
+            .fontSize(13)
+            .fontColor(Color.White)
+        }
+        .height(36)
+        .layoutWeight(1)
+        .backgroundColor('#FF6B6B')
+        .borderRadius(8)
+        .margin({ right: 6 })
+        .onClick(() => {
+          if (this.previewClip) {
+            this.handleCopy(this.previewClip);
+          }
+        })
+
+        Button() {
+          Text(this.previewClip!.isPinned ? '取消置顶' : '置顶')
+            .fontSize(13)
+            .fontColor('#333333')
+        }
+        .height(36)
+        .layoutWeight(1)
+        .backgroundColor('#F5F5F5')
+        .borderRadius(8)
+        .margin({ right: 6 })
+        .onClick(() => {
+          if (this.previewClip) {
+            this.vm.togglePin(this.previewClip);
+            // 刷新 previewClip 引用
+            const actual = this.getSelectedClipActual();
+            if (actual) {
+              this.previewClip = actual;
+            }
+          }
+        })
+
+        Button() {
+          Text('删除')
+            .fontSize(13)
+            .fontColor('#FF4444')
+        }
+        .height(36)
+        .layoutWeight(1)
+        .backgroundColor('#FFF0F0')
+        .borderRadius(8)
+        .onClick(() => {
+          if (this.previewClip) {
+            const id: number = this.previewClip.id;
+            this.vm.deleteClip(id);
+            this.showPreview = false;
+            this.previewClip = null;
+          }
+        })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 12, bottom: 16 })
     }
-    for (let i: number = 0; i < this.vm.clips.length; i++) {
-      columns[i % count].push(this.vm.clips[i]);
-    }
-    return columns;
+    .width(300)
+    .height('100%')
+    .backgroundColor(Color.White)
+  }
+
+  // ---------- 根据断点计算卡片宽度百分比 ----------
+  private getCardWidth(): string {
+    const cols: number = calcGridColumns(this.breakpoint);
+    return cols === 2 ? '50%' : '33.33%';
   }
 
   @Builder buildActionSheet() {
@@ -304,7 +492,7 @@ export struct ClipboardPage {
       // 操作面板
       Column() {
         Row() {
-          Text(this.selectedClip?.isPinned ? '📌 取消置顶' : '📌 置顶')
+          Text(this.getSelectedClipActual()?.isPinned ? '📌 取消置顶' : '📌 置顶')
             .fontSize(16)
             .fontColor('#333333')
         }
@@ -312,8 +500,9 @@ export struct ClipboardPage {
         .height(50)
         .justifyContent(FlexAlign.Center)
         .onClick(() => {
-          if (this.selectedClip) {
-            this.vm.togglePin(this.selectedClip);
+          const clip: ClipItem | null = this.getSelectedClipActual();
+          if (clip) {
+            this.vm.togglePin(clip);
           }
           this.showActionSheet = false;
         })
@@ -457,6 +646,21 @@ export struct ClipboardPage {
     return cat ? cat.color : '#FF6B6B';
   }
 
+  // 从当前 clips 数组通过 id 重新查找，防止 selectedClip 引用过期
+  private getSelectedClipActual(): ClipItem | null {
+    if (!this.selectedClip) return null;
+    const id: number = this.selectedClip.id;
+    for (const c of this.vm.clips) {
+      if (c.id === id) return c;
+    }
+    return this.selectedClip;
+  }
+
+  private handlePreview(clip: ClipItem): void {
+    this.previewClip = clip;
+    this.showPreview = true;
+  }
+
   private async handleCopy(clip: ClipItem): Promise<void> {
     await this.vm.copyToClipboard(clip);
     this.copyToast = '已复制!';
@@ -471,5 +675,22 @@ export struct ClipboardPage {
 
   private handleDelete(clip: ClipItem): void {
     this.vm.deleteClip(clip.id);
+  }
+
+  private formatTimestamp(timestamp: number): string {
+    const date: Date = new Date(timestamp);
+    const month: string = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day: string = date.getDate().toString().padStart(2, '0');
+    const hour: string = date.getHours().toString().padStart(2, '0');
+    const minute: string = date.getMinutes().toString().padStart(2, '0');
+    return month + '-' + day + ' ' + hour + ':' + minute;
+  }
+
+  private getImageFileName(filePath: string): string {
+    const lastSlash: number = filePath.lastIndexOf('/');
+    if (lastSlash >= 0 && lastSlash < filePath.length - 1) {
+      return filePath.substring(lastSlash + 1);
+    }
+    return filePath;
   }
 }

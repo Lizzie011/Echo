@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppStorageV2 } from '@kit.ArkUI';
+import { AppStorageV2, window, display } from '@kit.ArkUI';
 import { ClipboardViewModel } from '../viewmodel/ClipboardViewModel';
 import { CategoryViewModel } from '../viewmodel/CategoryViewModel';
 import { ClipboardPage } from './ClipboardPage';
@@ -29,6 +29,20 @@ struct Index {
       return;
     }
     this.isInitialized = true;
+    // 主动获取窗口宽度初始化断点，避免首次渲染 SM→MD/LG 布局跳变
+    // windowRect.width 返回物理像素(px)，需转换为 vp 再计算断点
+    try {
+      const windowStage: window.Window = await window.getLastWindow(this.context);
+      const props: window.WindowProperties = windowStage.getWindowProperties();
+      const pxW: number = props.windowRect.width;
+      if (pxW > 0) {
+        const density: number = display.getDefaultDisplaySync().densityPixels;
+        const vpW: number = density > 0 ? pxW / density : pxW;
+        this.currentBreakpoint = calcBreakpoint(vpW);
+      }
+    } catch (e) {
+      // 获取窗口失败则保持默认 SM，后续由 onAreaChange 更新
+    }
     try {
       await this.categoryVM.init(this.context);
       await this.clipboardVM.init(this.context);
@@ -56,6 +70,9 @@ struct Index {
             breakpoint: this.currentBreakpoint,
             onTabChange: (index: number): void => {
               this.currentTab = index;
+              if (index === 0) {
+                this.clipboardVM.cleanExpired();
+              }
             }
           })
           .width(sideNavWidth(this.currentBreakpoint))
@@ -68,29 +85,30 @@ struct Index {
             .width(1)
             .color('#F0F0F0')
 
-          // 右侧内容区 — 用 Stack + visibility 保活全部页面，避免条件渲染丢失 @Local 状态
-          Stack() {
+          // 右侧内容区 — 条件渲染：ViewModels 保留在 Index，子组件通过 @Param 读取最新状态
+          if (this.currentTab === 0) {
             ClipboardPage({
               vm: this.clipboardVM,
               categoryVM: this.categoryVM,
               breakpoint: this.currentBreakpoint
             })
-            .visibility(this.currentTab === 0 ? Visibility.Visible : Visibility.Hidden)
-
+            .layoutWeight(1)
+            .height('100%')
+          } else if (this.currentTab === 1) {
             CategoryPage({
               vm: this.categoryVM,
               breakpoint: this.currentBreakpoint
             })
-            .visibility(this.currentTab === 1 ? Visibility.Visible : Visibility.Hidden)
-
+            .layoutWeight(1)
+            .height('100%')
+          } else {
             SettingsPage({
               vm: this.clipboardVM,
               breakpoint: this.currentBreakpoint
             })
-            .visibility(this.currentTab === 2 ? Visibility.Visible : Visibility.Hidden)
+            .layoutWeight(1)
+            .height('100%')
           }
-          .layoutWeight(1)
-          .height('100%')
         }
         .width('100%')
         .height('100%')
@@ -100,17 +118,27 @@ struct Index {
         // ============================================================
         Tabs({ index: this.currentTab }) {
           TabContent() {
-            this.buildContentPage(0)
+            ClipboardPage({
+              vm: this.clipboardVM,
+              categoryVM: this.categoryVM,
+              breakpoint: this.currentBreakpoint
+            })
           }
           .tabBar(this.tabLabel('📋', '剪贴板'))
 
           TabContent() {
-            this.buildContentPage(1)
+            CategoryPage({
+              vm: this.categoryVM,
+              breakpoint: this.currentBreakpoint
+            })
           }
           .tabBar(this.tabLabel('📂', '分类'))
 
           TabContent() {
-            this.buildContentPage(2)
+            SettingsPage({
+              vm: this.clipboardVM,
+              breakpoint: this.currentBreakpoint
+            })
           }
           .tabBar(this.tabLabel('⚙', '设置'))
         }
@@ -119,7 +147,7 @@ struct Index {
         .onChange((index: number) => {
           this.currentTab = index;
           if (index === 0) {
-            this.reloadIfNeeded();
+            this.clipboardVM.cleanExpired();
           }
         })
       }
@@ -134,63 +162,11 @@ struct Index {
     })
   }
 
-  // ==================== 构建器 ====================
-
   @Builder tabLabel(icon: string, text: string) {
     Column() {
       Text(icon).fontSize(20);
       Text(text).fontSize(10).margin({ top: 2 });
     }
     .padding({ top: 6, bottom: 4 });
-  }
-
-  /**
-   * 侧边导航模式下的内容区（根据 currentTab 切换页面）
-   */
-  @Builder buildContentArea() {
-    if (this.currentTab === 0) {
-      ClipboardPage({
-        vm: this.clipboardVM,
-        categoryVM: this.categoryVM,
-        breakpoint: this.currentBreakpoint
-      })
-    } else if (this.currentTab === 1) {
-      CategoryPage({
-        vm: this.categoryVM,
-        breakpoint: this.currentBreakpoint
-      })
-    } else {
-      SettingsPage({
-        vm: this.clipboardVM,
-        breakpoint: this.currentBreakpoint
-      })
-    }
-  }
-
-  /**
-   * 底部 Tab 模式下的页面构建（供 TabContent 使用）
-   */
-  @Builder buildContentPage(tabIndex: number) {
-    if (tabIndex === 0) {
-      ClipboardPage({
-        vm: this.clipboardVM,
-        categoryVM: this.categoryVM,
-        breakpoint: this.currentBreakpoint
-      })
-    } else if (tabIndex === 1) {
-      CategoryPage({
-        vm: this.categoryVM,
-        breakpoint: this.currentBreakpoint
-      })
-    } else {
-      SettingsPage({
-        vm: this.clipboardVM,
-        breakpoint: this.currentBreakpoint
-      })
-    }
-  }
-
-  private reloadIfNeeded(): void {
-    this.clipboardVM.cleanExpired();
   }
 }

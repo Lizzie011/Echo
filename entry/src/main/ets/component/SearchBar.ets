@@ -1,37 +1,36 @@
 /**
- * 搜索栏组件
+ * 搜索栏组件（受控模式）
  * 用于剪贴板首页顶部的关键词搜索
+ * value 由父组件管理，SearchBar 自身不持有输入状态
  */
 
 @ComponentV2
 export struct SearchBar {
   @Param placeholder: string = '搜索剪贴内容...';
+  @Param value: string = '';
   @Event onChange?: (value: string) => void;
-  @Local private inputValue: string = '';
 
   build() {
     Row() {
       Text('🔍')
         .fontSize(16)
         .margin({ right: 8 })
-      TextInput({ text: this.inputValue, placeholder: this.placeholder })
+      TextInput({ text: this.value, placeholder: this.placeholder })
         .fontSize(14)
         .backgroundColor(Color.Transparent)
         .border({ width: 0 })
         .layoutWeight(1)
-        .onChange((value: string) => {
-          this.inputValue = value;
+        .onChange((val: string) => {
           if (this.onChange) {
-            this.onChange(value);
+            this.onChange(val);
           }
         })
-      if (this.inputValue.length > 0) {
+      if (this.value.length > 0) {
         Text('✕')
           .fontSize(14)
           .fontColor('#999999')
           .padding(6)
           .onClick(() => {
-            this.inputValue = '';
             if (this.onChange) {
               this.onChange('');
             }

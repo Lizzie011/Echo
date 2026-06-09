@@ -16,6 +16,7 @@ export class ClipboardViewModel {
   @Trace searchKeyword: string = '';
   @Trace selectedCategoryId: number = 0;
   @Trace retentionDays: number = 3;
+  @Trace dataVersion: number = 0;
   private db: DatabaseHelper = DatabaseHelper.getInstance();
   private systemPasteboard: pasteboard.SystemPasteboard | null = null;
   private context: common.UIAbilityContext | null = null;
@@ -30,6 +31,7 @@ export class ClipboardViewModel {
   private fullClips: ClipItem[] = [];
   private searchTimer: number = -1;
   private defaultCategoryId: number = 1;
+  private saveSeq: number = 0;
 
   async init(context: common.UIAbilityContext): Promise<void> {
     this.context = context;
@@ -224,6 +226,7 @@ export class ClipboardViewModel {
     this.lastContent = content;
 
     if (!this.context) return;
+    const seq: number = ++this.saveSeq;
     const now: number = Date.now();
     let expiresAt: number = 0;
     if (this.retentionDays > 0) {
@@ -239,6 +242,11 @@ export class ClipboardViewModel {
     clip.expiresAt = expiresAt;
 
     const rowId: number = await this.db.addClip(clip);
+    // 若在 await 期间有新的 saveClip 调用，丢弃本次结果避免乱序/重复
+    if (seq !== this.saveSeq) {
+      hilog.info(0x0000, TAG, `saveClip skipped (superseded), seq=${seq}, current=${this.saveSeq}`);
+      return;
+    }
     if (rowId > 0) {
       clip.id = rowId;
       // 更新主列表（prepend）
@@ -322,6 +330,7 @@ export class ClipboardViewModel {
       result.push(c);
     }
     this.clips = result;
+    this.dataVersion++;
   }
 
   private passFilter(c: ClipItem): boolean {
@@ -381,15 +390,31 @@ export class ClipboardViewModel {
   // ==================== 搜索 & 筛选 ====================
 
   onSearch(keyword: string): void {
-    // 200ms 防抖，减少快速输入时的频繁过滤
+    // Leading-edge + trailing debounce：首次击键立即搜索，后续击键 200ms 防抖
+    if (this.searchTimer === -1) {
+      // Leading edge: 立即响应，用户立刻看到结果
+      this.searchKeyword = keyword;
+      this.applyFilters();
+    }
+    // 清除旧的 trailing 定时器
     if (this.searchTimer !== -1) {
       clearTimeout(this.searchTimer);
     }
+    // 设置新的 trailing 定时器：停止输入 200ms 后用最终关键词再搜索一次
     this.searchTimer = setTimeout(() => {
       this.searchKeyword = keyword;
       this.applyFilters();
       this.searchTimer = -1;
     }, 200);
+  }
+
+  clearSearch(): void {
+    if (this.searchTimer !== -1) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = -1;
+    }
+    this.searchKeyword = '';
+    this.applyFilters();
   }
 
   onFilterCategory(categoryId: number): void {
@@ -533,13 +558,20 @@ export class ClipboardViewModel {
   }
 
   async deleteAll(): Promise<void> {
-    await this.db.deleteAllClips();
+    // 乐观更新：先清内存再清 DB，避免 await 期间 UI 显示旧数据
+    if (this.searchTimer !== -1) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = -1;
+    }
     this.fullClips = [];
     this.clips = [];
+    this.dataVersion++;
+    this.searchKeyword = '';
+    this.selectedCategoryId = 0;
+    await this.db.deleteAllClips();
   }
 
   async cleanExpired(): Promise<void> {
-    await this.db.deleteExpiredClips();
     if (this.retentionDays > 0) {
       const now: number = Date.now();
       const newFull: ClipItem[] = [];
@@ -556,5 +588,11 @@ export class ClipboardViewModel {
       this.fullClips = newFull;
     }
     this.applyFilters();
+    // DB 清理异步执行，不阻塞 UI
+    try {
+      await this.db.deleteExpiredClips();
+    } catch (e) {
+      // 静默失败，DB 清理不影响功能
+    }
   }
 }

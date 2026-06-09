@@ -11,39 +11,39 @@ export struct ClipCard {
   @Param categoryName: string = '';
   @Param categoryColor: string = '#FF6B6B';
   @Param isHovered: boolean = false;
-  @Event onCopy?: (item: ClipItem) => void;
+  @Param wideLayout: boolean = false;
 
   build() {
     Column() {
       Row() {
         Text(this.clipItem.type === 'image' ? '🖼' : '📝')
-          .fontSize(22)
+          .fontSize(this.wideLayout ? 26 : 22)
           .margin({ right: 10 })
 
         Column() {
           if (this.clipItem.type === 'image') {
             Image(this.clipItem.content)
               .width('100%')
-              .height(120)
+              .height(this.wideLayout ? 160 : 120)
               .objectFit(ImageFit.Cover)
               .borderRadius(8)
           } else {
-            Text(this.clipItem.content.substring(0, 200))
-              .fontSize(14)
+            Text(this.clipItem.content.substring(0, this.wideLayout ? 300 : 200))
+              .fontSize(this.wideLayout ? 16 : 14)
               .fontColor('#1A1A1A')
-              .maxLines(3)
+              .maxLines(this.wideLayout ? 5 : 3)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .width('100%')
           }
 
           Row() {
             Text(this.formatTime(this.clipItem.createdAt))
-              .fontSize(11)
+              .fontSize(this.wideLayout ? 12 : 11)
               .fontColor('#999999')
             Blank()
             if (this.categoryName.length > 0) {
               Text(this.categoryName)
-                .fontSize(10)
+                .fontSize(this.wideLayout ? 12 : 10)
                 .fontColor(Color.White)
                 .padding({ left: 8, right: 8, top: 2, bottom: 2 })
                 .borderRadius(8)
@@ -61,12 +61,13 @@ export struct ClipCard {
         .layoutWeight(1)
       }
       .width('100%')
-      .padding(14)
+      .padding(this.wideLayout ? 20 : 14)
     }
+    .width('100%')
     .backgroundColor(Color.White)
     .borderRadius(14)
     .border({ width: 1, color: '#F0F0F0' })
-    .margin({ top: 4, bottom: 4 })
+    .margin({ top: this.wideLayout ? 6 : 4, bottom: this.wideLayout ? 6 : 4 })
     .shadow(this.isHovered ? {
       radius: 8,
       color: 'rgba(0,0,0,0.1)',
@@ -80,11 +81,6 @@ export struct ClipCard {
     })
     .scale(this.isHovered ? { x: 1.02, y: 1.02 } : { x: 1, y: 1 })
     .animation({ duration: 200 })
-    .onClick(() => {
-      if (this.onCopy) {
-        this.onCopy(this.clipItem);
-      }
-    })
   }
 
   private getImageFileName(): string {

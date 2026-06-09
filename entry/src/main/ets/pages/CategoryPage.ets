@@ -48,17 +48,175 @@ export struct CategoryPage {
           bottom: 12
         })
 
-        // 分类列表
+        // 分类列表（内联布局，确保 @Trace 数据变化时 UI 正确刷新）
         if (this.vm.categories.length === 0) {
           this.buildEmptyView()
-        } else {
-          if (this.breakpoint === Breakpoint.SM) {
-            // 手机：单列行
-            this.buildSingleColumnList()
-          } else {
-            // 平板/PC：双列卡片网格
-            this.buildCategoryGrid()
+        } else if (this.breakpoint === Breakpoint.SM) {
+          // 手机：单列行
+          Scroll() {
+            Column() {
+              ForEach(this.vm.categories, (cat: CategoryItem) => {
+                Row() {
+                  Text('●')
+                    .fontSize(24)
+                    .fontColor(cat.color)
+                    .margin({ right: 12 })
+
+                  Text(cat.name)
+                    .fontSize(15)
+                    .fontColor('#333333')
+                    .layoutWeight(1)
+
+                  if (cat.name !== '默认') {
+                    Text('✎')
+                      .fontSize(16)
+                      .fontColor('#999999')
+                      .padding(8)
+                      .onClick(() => {
+                        this.editingCategory = cat;
+                        this.inputName = cat.name;
+                        this.selectedColor = cat.color;
+                        this.showEditDialog = true;
+                      })
+
+                    Text('🗑')
+                      .fontSize(16)
+                      .fontColor('#CCCCCC')
+                      .padding(8)
+                      .onClick(() => {
+                        this.editingCategory = cat;
+                        this.showDeleteDialog = true;
+                      })
+                  }
+                }
+                .width('100%')
+                .height(56)
+                .backgroundColor(Color.White)
+                .borderRadius(12)
+                .padding({ left: 16, right: 12 })
+                .margin({ left: 16, right: 16, top: 4, bottom: 4 })
+              }, (cat: CategoryItem): string => {
+                return cat.id.toString() + '_' + cat.name;
+              })
+            }
+            .width('100%')
           }
+          .scrollable(ScrollDirection.Vertical)
+          .scrollBar(BarState.Off)
+          .layoutWeight(1)
+        } else {
+          // 平板/PC：双列卡片网格
+          Scroll() {
+            Row() {
+              // 左列
+              Column() {
+                ForEach(this.getLeftCategories(), (cat: CategoryItem) => {
+                  Column() {
+                    Row() {
+                      Text('●')
+                        .fontSize(24)
+                        .fontColor(cat.color)
+                        .margin({ right: 12 })
+
+                      Text(cat.name)
+                        .fontSize(15)
+                        .fontColor('#333333')
+                        .layoutWeight(1)
+
+                      if (cat.name !== '默认') {
+                        Text('✎')
+                          .fontSize(14)
+                          .fontColor('#999999')
+                          .padding(6)
+                          .onClick(() => {
+                            this.editingCategory = cat;
+                            this.inputName = cat.name;
+                            this.selectedColor = cat.color;
+                            this.showEditDialog = true;
+                          })
+
+                        Text('🗑')
+                          .fontSize(14)
+                          .fontColor('#CCCCCC')
+                          .padding(6)
+                          .onClick(() => {
+                            this.editingCategory = cat;
+                            this.showDeleteDialog = true;
+                          })
+                      }
+                    }
+                    .width('100%')
+                  }
+                  .width('100%')
+                  .backgroundColor(Color.White)
+                  .borderRadius(14)
+                  .padding(14)
+                  .margin({ top: 4, bottom: 4 })
+                }, (cat: CategoryItem): string => {
+                  return 'left_' + cat.id.toString();
+                })
+              }
+              .layoutWeight(1)
+              .margin({ right: 4 })
+
+              // 右列
+              Column() {
+                ForEach(this.getRightCategories(), (cat: CategoryItem) => {
+                  Column() {
+                    Row() {
+                      Text('●')
+                        .fontSize(24)
+                        .fontColor(cat.color)
+                        .margin({ right: 12 })
+
+                      Text(cat.name)
+                        .fontSize(15)
+                        .fontColor('#333333')
+                        .layoutWeight(1)
+
+                      if (cat.name !== '默认') {
+                        Text('✎')
+                          .fontSize(14)
+                          .fontColor('#999999')
+                          .padding(6)
+                          .onClick(() => {
+                            this.editingCategory = cat;
+                            this.inputName = cat.name;
+                            this.selectedColor = cat.color;
+                            this.showEditDialog = true;
+                          })
+
+                        Text('🗑')
+                          .fontSize(14)
+                          .fontColor('#CCCCCC')
+                          .padding(6)
+                          .onClick(() => {
+                            this.editingCategory = cat;
+                            this.showDeleteDialog = true;
+                          })
+                      }
+                    }
+                    .width('100%')
+                  }
+                  .width('100%')
+                  .backgroundColor(Color.White)
+                  .borderRadius(14)
+                  .padding(14)
+                  .margin({ top: 4, bottom: 4 })
+                }, (cat: CategoryItem): string => {
+                  return 'right_' + cat.id.toString();
+                })
+              }
+              .layoutWeight(1)
+              .margin({ left: 4 })
+            }
+            .width('100%')
+            .padding({ left: 18, right: 18 })
+            .alignItems(VerticalAlign.Top)
+          }
+          .scrollable(ScrollDirection.Vertical)
+          .scrollBar(BarState.Off)
+          .layoutWeight(1)
         }
       }
       .width('100%')
@@ -93,141 +251,6 @@ export struct CategoryPage {
     }
     .width('100%')
     .height('100%')
-  }
-
-  // ---------- 手机端：单列全宽行 ----------
-  @Builder buildSingleColumnList() {
-    Scroll() {
-      Column() {
-        ForEach(this.vm.categories, (cat: CategoryItem) => {
-          Row() {
-            Text('●')
-              .fontSize(24)
-              .fontColor(cat.color)
-              .margin({ right: 12 })
-
-            Text(cat.name)
-              .fontSize(15)
-              .fontColor('#333333')
-              .layoutWeight(1)
-
-            if (cat.name !== '默认') {
-              Text('✎')
-                .fontSize(16)
-                .fontColor('#999999')
-                .padding(8)
-                .onClick(() => {
-                  this.editingCategory = cat;
-                  this.inputName = cat.name;
-                  this.selectedColor = cat.color;
-                  this.showEditDialog = true;
-                })
-
-              Text('🗑')
-                .fontSize(16)
-                .fontColor('#CCCCCC')
-                .padding(8)
-                .onClick(() => {
-                  this.editingCategory = cat;
-                  this.showDeleteDialog = true;
-                })
-            }
-          }
-          .width('100%')
-          .height(56)
-          .backgroundColor(Color.White)
-          .borderRadius(12)
-          .padding({ left: 16, right: 12 })
-          .margin({ left: 16, right: 16, top: 4, bottom: 4 })
-        }, (cat: CategoryItem): string => {
-          return cat.id.toString() + '_' + cat.name;
-        })
-      }
-      .width('100%')
-    }
-    .scrollable(ScrollDirection.Vertical)
-    .scrollBar(BarState.Off)
-    .layoutWeight(1)
-  }
-
-  // ---------- 平板/PC：双列卡片网格 ----------
-  @Builder buildCategoryGrid() {
-    Scroll() {
-      Row() {
-        // 左列
-        Column() {
-          ForEach(this.getLeftCategories(), (cat: CategoryItem) => {
-            this.buildCategoryCard(cat)
-          }, (cat: CategoryItem): string => {
-            return 'left_' + cat.id.toString();
-          })
-        }
-        .layoutWeight(1)
-        .margin({ right: 4 })
-
-        // 右列
-        Column() {
-          ForEach(this.getRightCategories(), (cat: CategoryItem) => {
-            this.buildCategoryCard(cat)
-          }, (cat: CategoryItem): string => {
-            return 'right_' + cat.id.toString();
-          })
-        }
-        .layoutWeight(1)
-        .margin({ left: 4 })
-      }
-      .width('100%')
-      .padding({ left: 18, right: 18 })
-      .alignItems(VerticalAlign.Top)
-    }
-    .scrollable(ScrollDirection.Vertical)
-    .scrollBar(BarState.Off)
-    .layoutWeight(1)
-  }
-
-  // 双列模式下的分类卡片
-  @Builder buildCategoryCard(cat: CategoryItem) {
-    Column() {
-      Row() {
-        Text('●')
-          .fontSize(24)
-          .fontColor(cat.color)
-          .margin({ right: 12 })
-
-        Text(cat.name)
-          .fontSize(15)
-          .fontColor('#333333')
-          .layoutWeight(1)
-
-        if (cat.name !== '默认') {
-          Text('✎')
-            .fontSize(14)
-            .fontColor('#999999')
-            .padding(6)
-            .onClick(() => {
-              this.editingCategory = cat;
-              this.inputName = cat.name;
-              this.selectedColor = cat.color;
-              this.showEditDialog = true;
-            })
-
-          Text('🗑')
-            .fontSize(14)
-            .fontColor('#CCCCCC')
-            .padding(6)
-            .onClick(() => {
-              this.editingCategory = cat;
-              this.showDeleteDialog = true;
-            })
-        }
-      }
-      .width('100%')
-    }
-    .width('100%')
-    .backgroundColor(Color.White)
-    .borderRadius(14)
-    .padding(14)
-    .margin({ top: 4, bottom: 4 })
   }
 
   // 奇偶拆分：左列取偶数索引
